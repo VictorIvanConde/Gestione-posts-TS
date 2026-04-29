@@ -1,3 +1,4 @@
+// V.I.C. --> esercizio fetch post 22-04-2026
 "use strict";
 // Selezione elementi del DOM con tipizzazione specifica
 const filtroUtente = document.getElementById("filtroUtente");
@@ -18,7 +19,7 @@ let pagina = 1;
 let testoRicercaAttuale = "";
 let ultimiRisultatiRicerca = null;
 let ricercaInCorso = false;
-let idPostAperto = null; // ID del post visualizzato nel dettaglio
+let idPostAperto = null;
 // Funzione generica per le chiamate API
 async function api(url) {
     const res = await fetch(url);
@@ -31,10 +32,7 @@ async function api(url) {
 function attendi(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-/**
- * Evidenzia le parole cercate nel testo fornito.
- * Usa la classe CSS .highlight per lo stile neon green.
- */
+/** Evidenzia */
 function evidenziaTesto(testo, query) {
     if (!testo)
         return "";
@@ -93,7 +91,7 @@ function ottieniPostFiltrati() {
     }
     return postFiltrati;
 }
-// Renderizzazione della lista post (colonna sinistra)
+// Renderizzazione della lista post
 function mostraListaPost() {
     const quantiPerPagina = Number(perPagina.value);
     const postFiltrati = ottieniPostFiltrati();
