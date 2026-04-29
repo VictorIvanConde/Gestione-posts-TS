@@ -217,9 +217,7 @@ async function eseguiRicerca() {
     pagina = 1;
     mostraListaPost();
 }
-// =====================================================
 //                EVENT LISTENERS
-// =====================================================
 // Filtro Utente
 filtroUtente.addEventListener("change", () => {
     pagina = 1;

@@ -360,9 +360,8 @@ async function eseguiRicerca(): Promise<void> {
     mostraListaPost();
 }
 
-// =====================================================
+
 //                EVENT LISTENERS
-// =====================================================
 
 // Filtro Utente
 filtroUtente.addEventListener("change", () => {
