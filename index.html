@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esercizio Fetch Post - TypeScript</title>
+    <!-- Uso lo stile esistente nella sottocartella -->
+    <link rel="stylesheet" href="app-post/stile.css">
+    <style>
+        /* Aggiunte rapide per il design premium */
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .pagina {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            margin: 20px auto;
+            padding: 30px;
+            max-width: 1200px;
+        }
+        .post-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        .post-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        mark {
+            background-color: #ffd700;
+            color: black;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="pagina">
+        <h1>Bacheca Articoli (TS Version)</h1>
+
+        <div class="controlli">
+            <div class="campo">
+                <label for="filtroUtente">Filtro utente</label>
+                <select id="filtroUtente">
+                    <option value="">Tutti gli utenti</option>
+                </select>
+            </div>
+
+            <div class="campo">
+                <label for="perPagina">Post per pagina</label>
+                <select id="perPagina">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                    <option value="20" selected>20</option>
+                    <option value="25">25</option>
+                </select>
+            </div>
+
+            <div class="campo campo-ricerca">
+                <div class="contenitore-ricerca">
+                    <div class="barra-google">
+                        <span class="icona-ricerca">🔍</span>
+                        <input type="text" id="barraRicerca" placeholder="Cerca nel titolo o nel body...">
+                        <button id="cercaBtn" type="button">Cerca</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p id="messaggio"></p>
+
+        <div id="erroreServerBox" class="errore-server-box" style="display: none;">
+            <p>Errore temporaneo del server. Premi riprova.</p>
+            <button id="riprovaCentroBtn" type="button">⟳ Riprova</button>
+        </div>
+
+        <div class="contenitore">
+            <div class="colonna-sinistra">
+                <div id="listaPost"></div>
+
+                <div class="paginazione">
+                    <button id="prevBtn">Precedente</button>
+                    <span id="paginaCorrente">Pagina 1</span>
+                    <button id="nextBtn">Successiva</button>
+                </div>
+            </div>
+
+            <div class="colonna-destra">
+                <h2>Dettaglio post</h2>
+                <div id="dettaglioPost">
+                    <div class="dettaglio-vuoto">
+                        <p>Seleziona un post per vedere il dettaglio completo.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Il file compilato da TypeScript -->
+    <script src="Typescript.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elenco articoli</title>
+    <link rel="stylesheet" href="stile.css">
+</head>
+
+<body>
+    <div class="pagina">
+        <h1>Elenco articoli</h1>
+
+        <div class="controlli">
+            <div class="campo">
+                <label for="filtroUtente">Filtro utente</label>
+                <select id="filtroUtente">
+                    <option value="">Tutti gli utenti</option>
+                </select>
+            </div>
+
+            <div class="campo">
+                <label for="perPagina">Post per pagina</label>
+                <select id="perPagina">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                    <option value="20" selected>20</option>
+                    <option value="25">25</option>
+                </select>
+            </div>
+
+            <div class="campo campo-ricerca">
+                <label for="barraRicerca"></label>
+
+                <div class="contenitore-ricerca">
+
+                    <div class="barra-google">
+                        <span class="icona-ricerca">🔍</span>
+                        <input type="text" id="barraRicerca" placeholder="Cerca nel titolo o nel body">
+                        <button id="cercaBtn" type="button">Cerca</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p id="messaggio">Caricamento in corso...</p>
+
+        <div id="erroreServerBox" class="errore-server-box" style="display: none;">
+            <p>Errore temporaneo del server.Premi riprova e abbi pazienza</p>
+            <button id="riprovaCentroBtn" type="button">⟳ Riprova</button>
+        </div>
+
+        <div class="contenitore">
+            <div class="colonna-sinistra">
+                <div id="listaPost"></div>
+
+                <div class="paginazione">
+                    <button id="prevBtn">Precedente</button>
+                    <span id="paginaCorrente">Pagina 1</span>
+                    <button id="nextBtn">Successiva</button>
+                </div>
+            </div>
+
+            <div class="colonna-destra">
+                <h2>Dettaglio post</h2>
+                <div id="dettaglioPost">
+                    <div class="dettaglio-vuoto">
+
+                        <p>Seleziona un post per vedere il dettaglio completo.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
