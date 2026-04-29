@@ -1,401 +1,286 @@
 // V.I.C. --> esercizio fetch post 22-04-2026
+"use strict";
 
-
-// definisco la struttura dei dati che ricevi dalle mie api
-// questo evita errori tipo "undefined", "string dove serve number", ecc.
-
-
-// POST = struttura fissa dei dati ricevuti dall'API
-type Post = {
+// Definizione interfacce per i dati dell'API
+interface Post {
     userId: number;
     id: number;
     title: string;
     body: string;
-};
+}
 
-// USER = utenti dell'API
-type User = {
+interface Utente {
     id: number;
     name: string;
-};
+    username: string;
+    email: string;
+}
 
-// COMMENTI = dati collegati ai post
-type Commento = {
+interface Commento {
     postId: number;
     id: number;
     name: string;
     email: string;
     body: string;
-};
+}
 
-
+// Selezione elementi del DOM con tipizzazione specifica
 const filtroUtente = document.getElementById("filtroUtente") as HTMLSelectElement;
 const perPagina = document.getElementById("perPagina") as HTMLSelectElement;
-
 const messaggio = document.getElementById("messaggio") as HTMLElement;
 const listaPost = document.getElementById("listaPost") as HTMLElement;
 const dettaglioPost = document.getElementById("dettaglioPost") as HTMLElement;
-
 const prevBtn = document.getElementById("prevBtn") as HTMLButtonElement;
 const nextBtn = document.getElementById("nextBtn") as HTMLButtonElement;
-
 const paginaCorrente = document.getElementById("paginaCorrente") as HTMLElement;
-
 const barraRicerca = document.getElementById("barraRicerca") as HTMLInputElement;
 const cercaBtn = document.getElementById("cercaBtn") as HTMLButtonElement;
-
-const erroreServerBox = document.getElementById("erroreServerBox") as HTMLElement;
 const riprovaCentroBtn = document.getElementById("riprovaCentroBtn") as HTMLButtonElement;
 
-
-// questi sono i dati che uso in tutta l'app
-
+// Variabili di stato dell'applicazione
 let tuttiPost: Post[] = [];
-let tuttiUtenti: User[] = [];
-
-// pagina corrente (paginazione)
+let tuttiUtenti: Utente[] = [];
 let pagina: number = 1;
-
-// testo ricerca attuale
 let testoRicercaAttuale: string = "";
-
-// risultati filtrati della ricerca (può essere null)
 let ultimiRisultatiRicerca: Post[] | null = null;
+let ricercaInCorso: boolean = false;
+let idPostAperto: number | null = null;
 
-
-// qui si vede 
-// → in TS dico ESPLICITAMENTE che tipo sono gli array
-// → in JS non esiste questa sicurezza
-
-// <T> = generico
-// significa: "questa funzione può restituire QUALSIASI tipo"
-
+// Funzione generica per le chiamate API
 async function api<T>(url: string): Promise<T> {
-
-    const res = await fetch(url);
-
+    const res: Response = await fetch(url);
     if (!res.ok) {
         throw new Error("Errore nella richiesta");
     }
-
     return res.json();
 }
 
-
-//Funzionme di attesa per simulare server lento
-
+// Funzione di attesa per simulazioni
 function attendi(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Funzione per evidenziace il testo cercato
+/** Evidenzia */
 function evidenziaTesto(testo: string, query: string): string {
-    if (!query.trim()) return testo;
-    const parole = query.trim().split(/\s+/).filter(p => p.length > 0);
-    let testoRisultante = testo;
+    if (!testo) return "";
+    if (!query || !query.trim()) return testo;
 
-    parole.forEach(parola => {
-        const regex = new RegExp(`(${parola})`, "gi");
-        testoRisultante = testoRisultante.replace(regex, "<mark>$1</mark>");
+    const queryProtetta: string = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parole: string[] = queryProtetta.trim().split(/\s+/).filter((p: string) => p.length > 0);
+    let testoRisultante: string = testo;
+
+    parole.forEach((parola: string): void => {
+        const regex: RegExp = new RegExp(`(${parola})`, "gi");
+        testoRisultante = testoRisultante.replace(regex, '<span class="highlight">$1</span>');
     });
 
     return testoRisultante;
 }
 
-//questa funzione parte appena si apre la pagina
-
+// Avvio dell'applicazione
 async function caricaDatiIniziali(): Promise<void> {
-
-    // feedback utente (loading)
-    messaggio.textContent = "⏳ Caricamento post...";
+    messaggio.textContent = "⏳ Caricamento dati...";
     messaggio.className = "loader";
 
     try {
+        // Fetch parallela di post e utenti
+        [tuttiPost, tuttiUtenti] = await Promise.all([
+            api<Post[]>("https://jsonplaceholder.typicode.com/posts"),
+            api<Utente[]>("https://jsonplaceholder.typicode.com/users")
+        ]);
 
-        // FETCH DATI (qui uso TS con tipi precisi)
-        tuttiPost = await api<Post[]>("https://jsonplaceholder.typicode.com/posts");
-        tuttiUtenti = await api<User[]>("https://jsonplaceholder.typicode.com/users");
-
-        // riempio filtro utenti
         riempiFiltroUtenti();
-
-        // mostro lista iniziale post
         mostraListaPost();
 
-        // pulizia messaggio
         messaggio.textContent = "";
         messaggio.className = "";
-
     } catch (errore) {
-
-        // gestione errore fetch
         messaggio.textContent = "Errore durante il caricamento dei dati.";
         messaggio.className = "errore";
-
-        console.log(errore);
+        console.error(errore);
     }
 }
 
-
-// prendo utenti e li metto nella select
-
+// Popolamento select utenti
 function riempiFiltroUtenti(): void {
-
-    tuttiUtenti.forEach((utente: User) => {
-
-        const option = document.createElement("option");
-
+    tuttiUtenti.forEach((utente: Utente): void => {
+        const option: HTMLOptionElement = document.createElement("option");
         option.value = String(utente.id);
         option.textContent = utente.name;
-
         filtroUtente.appendChild(option);
     });
 }
 
-//qua trovo il nome utente con l'id
-// input: userId
-// output: nome utente
-
+// Helper per trovare il nome dell'utente
 function trovaNomeUtente(userId: number): string {
-
-    const utente = tuttiUtenti.find(u => u.id === userId);
-
+    const utente: Utente | undefined = tuttiUtenti.find(u => u.id === userId);
     return utente ? utente.name : "Utente sconosciuto";
 }
 
-// qui combino:
-// - filtro utente
-// - ricerca
-
+// Filtra i post in base alla ricerca e all'utente selezionato
 function ottieniPostFiltrati(): Post[] {
+    const userIdSelezionato: string = filtroUtente.value;
+    let postFiltrati: Post[] = (ultimiRisultatiRicerca !== null) ? ultimiRisultatiRicerca : tuttiPost;
 
-    const userIdSelezionato = filtroUtente.value;
-
-    let postFiltrati: Post[] = tuttiPost;
-
-    // filtro per utente
     if (userIdSelezionato) {
-        postFiltrati = postFiltrati.filter(
-            post => post.userId === Number(userIdSelezionato)
-        );
+        postFiltrati = postFiltrati.filter(post => post.userId === Number(userIdSelezionato));
     }
-
-    // se esiste ricerca attiva la applico
-    if (ultimiRisultatiRicerca !== null) {
-
-        postFiltrati = ultimiRisultatiRicerca.filter(post => {
-
-            if (!userIdSelezionato) return true;
-
-            return post.userId === Number(userIdSelezionato);
-        });
-    }
-
     return postFiltrati;
 }
 
-//lista dei post
-// costruisco UI dinamica (card)
-
+// Renderizzazione della lista post
 function mostraListaPost(): void {
+    const quantiPerPagina: number = Number(perPagina.value);
+    const postFiltrati: Post[] = ottieniPostFiltrati();
+    let totalePagine: number = Math.ceil(postFiltrati.length / quantiPerPagina) || 1;
 
-    const quantiPerPagina = Number(perPagina.value);
+    if (pagina > totalePagine) pagina = totalePagine;
 
-    const postFiltrati = ottieniPostFiltrati();
-
-    let totalePagine = Math.ceil(postFiltrati.length / quantiPerPagina);
-
-    if (totalePagine === 0) totalePagine = 1;
-
-    if (pagina > totalePagine) {
-        pagina = totalePagine;
-    }
-
-    const inizio = (pagina - 1) * quantiPerPagina;
-    const fine = inizio + quantiPerPagina;
-
-    const postDaMostrare = postFiltrati.slice(inizio, fine);
+    const inizio: number = (pagina - 1) * quantiPerPagina;
+    const fine: number = inizio + quantiPerPagina;
+    const postDaMostrare: Post[] = postFiltrati.slice(inizio, fine);
 
     listaPost.innerHTML = "";
-
-    postDaMostrare.forEach((post: Post) => {
-
-        const card = document.createElement("div");
+    postDaMostrare.forEach((post: Post): void => {
+        const card: HTMLDivElement = document.createElement("div");
         card.className = "post-card";
+        if (idPostAperto === post.id) card.classList.add("post-attivo");
 
-        const titolo = document.createElement("h3");
-        titolo.innerHTML = evidenziaTesto(post.title, testoRicercaAttuale);
+        card.innerHTML = `
+            <h3>${evidenziaTesto(post.title, testoRicercaAttuale)}</h3>
+            <p><strong>Utente:</strong> ${trovaNomeUtente(post.userId)}</p>
+            <p><strong>Anteprima:</strong> ${evidenziaTesto(post.body.slice(0, 60), testoRicercaAttuale)}...</p>
+        `;
 
-        const autore = document.createElement("p");
-        autore.innerHTML = `<strong>Utente:</strong> ${trovaNomeUtente(post.userId)}`;
-
-        const bodyBreve = document.createElement("p");
-
-        const anteprima = post.body.slice(0, 60);
-
-        bodyBreve.innerHTML =
-            `<strong>Anteprima:</strong> ${evidenziaTesto(anteprima, testoRicercaAttuale)}...`;
-
-        // click su card → apro dettaglio
-        card.addEventListener("click", () => {
-
-            document.querySelectorAll(".post-card")
-                .forEach(el => el.classList.remove("post-attivo"));
-
+        card.addEventListener("click", (): void => {
+            document.querySelectorAll(".post-card").forEach(el => el.classList.remove("post-attivo"));
             card.classList.add("post-attivo");
-
+            idPostAperto = post.id;
             mostraDettaglioPost(post.id);
-
             dettaglioPost.scrollIntoView({ behavior: "smooth" });
         });
-
-        card.appendChild(titolo);
-        card.appendChild(autore);
-        card.appendChild(bodyBreve);
 
         listaPost.appendChild(card);
     });
 
-    // gestione paginazione
-    const paginazione = document.querySelector(".paginazione") as HTMLElement;
+    aggiornaUIComponenti(postFiltrati.length, totalePagine);
+}
 
-    if (postFiltrati.length === 0) {
+// Aggiorna contatore pagine e stato bottoni
+function aggiornaUIComponenti(totalePost: number, totalePagine: number): void {
+    const paginazione: HTMLElement | null = document.querySelector(".paginazione");
+    if (!paginazione) return;
+
+    if (totalePost === 0) {
         paginazione.style.display = "none";
     } else {
         paginazione.style.display = "flex";
-
-        paginaCorrente.textContent =
-            `Pagina ${pagina} di ${totalePagine}`;
-
-        prevBtn.style.display = pagina === 1 ? "none" : "inline-block";
-        nextBtn.style.display = pagina === totalePagine ? "none" : "inline-block";
+        paginaCorrente.textContent = `Pagina ${pagina} di ${totalePagine}`;
+        prevBtn.disabled = (pagina === 1);
+        nextBtn.disabled = (pagina === totalePagine);
     }
 }
 
-// fetch + render dettagli + commenti
-
+// Renderizzazione dettaglio post e commenti (colonna destra)
 async function mostraDettaglioPost(postId: number): Promise<void> {
-
     try {
-        dettaglioPost.innerHTML = "<p>⏳ Caricamento...</p>";
+        dettaglioPost.innerHTML = "<p>⏳ Caricamento dettaglio...</p>";
 
-        const post = await api<Post>(
-            `https://jsonplaceholder.typicode.com/posts/${postId}`
-        );
+        const [post, commenti] = await Promise.all([
+            api<Post>(`https://jsonplaceholder.typicode.com/posts/${postId}`),
+            api<Commento[]>(`https://jsonplaceholder.typicode.com/comments?postId=${postId}`)
+        ]);
 
-        const commenti = await api<Commento[]>(
-            `https://jsonplaceholder.typicode.com/comments?postId=${postId}`
-        );
-
-        let html = "";
-
-        html += "<div class='box-post'>";
-        html += `<h3>${evidenziaTesto(post.title, testoRicercaAttuale)}</h3>`;
-        html += `<p><strong>Utente:</strong> ${trovaNomeUtente(post.userId)}</p>`;
-        html += `<p>${evidenziaTesto(post.body, testoRicercaAttuale)}</p>`;
-        html += "</div>";
-
-        html += "<div id='boxCommenti'>";
-
-        commenti.forEach((c: Commento) => {
-
-            html += `<p><strong>${evidenziaTesto(c.name, testoRicercaAttuale)}</strong></p>`;
-            html += `<p>${c.email}</p>`;
-            html += `<p>${evidenziaTesto(c.body, testoRicercaAttuale)}</p>`;
-        });
-
-        html += "</div>";
+        let html: string = `
+            <div class='box-post'>
+                <h3>${evidenziaTesto(post.title, testoRicercaAttuale)}</h3>
+                <p><strong>Utente:</strong> ${trovaNomeUtente(post.userId)}</p>
+                <p>${evidenziaTesto(post.body, testoRicercaAttuale)}</p>
+                <button id="btnToggleCommenti" class="btn-commenti" title="Mostra commenti"></button>
+            </div>
+            <div id='boxCommenti' class='box-commenti' style='display: none;'>
+                <h4>Commenti (${commenti.length})</h4>
+                <div class='lista-commenti'>
+                    ${commenti.map(c => `
+                        <div class='commento'>
+                            <p><strong>${evidenziaTesto(c.name, testoRicercaAttuale)}</strong></p>
+                            <p><small>${c.email}</small></p>
+                            <p>${evidenziaTesto(c.body, testoRicercaAttuale)}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
 
         dettaglioPost.innerHTML = html;
 
+        const btn: HTMLButtonElement | null = document.getElementById("btnToggleCommenti") as HTMLButtonElement;
+        const box: HTMLElement | null = document.getElementById("boxCommenti");
+
+        if (btn && box) {
+            btn.addEventListener("click", (): void => {
+                const isNascosto: boolean = box.style.display === "none";
+                box.style.display = isNascosto ? "block" : "none";
+                btn.classList.toggle("aperto");
+            });
+        }
     } catch (errore) {
-        dettaglioPost.innerHTML = "<p>Errore nel caricamento del dettaglio.</p>";
-        console.log(errore);
+        dettaglioPost.innerHTML = "<p class='errore'>Errore nel caricamento del dettaglio.</p>";
+        console.error(errore);
     }
 }
 
-//validazione
-
-function validaRicerca(testo: string): string | true {
-
-    if (!testo.trim()) return "Il campo di ricerca è obbligatorio.";
-
-    if (testo.trim().length < 3) return "Minimo 3 caratteri.";
-
-    return true;
-}
-
-// ricerca del post
-
+// Logica di ricerca asincrona
 async function eseguiRicerca(): Promise<void> {
+    if (ricercaInCorso) return;
+    const testo: string = barraRicerca.value.trim();
 
-    const testo = barraRicerca.value.trim();
+    try {
+        ricercaInCorso = true;
+        testoRicercaAttuale = testo;
+        messaggio.textContent = "🔍 Ricerca in corso...";
 
-    const validazione = validaRicerca(testo);
+        await attendi(400); // Simulazione latenza
 
-    if (validazione !== true) {
-        messaggio.textContent = validazione;
-        ultimiRisultatiRicerca = null;
+        if (!testo) {
+            ultimiRisultatiRicerca = null;
+        } else {
+            const parole: string[] = testo.toLowerCase().split(" ").filter(Boolean);
+            ultimiRisultatiRicerca = tuttiPost.filter((post: Post): boolean =>
+                parole.every(p => post.title.toLowerCase().includes(p) || post.body.toLowerCase().includes(p))
+            );
+        }
+
+        pagina = 1;
         mostraListaPost();
-        return;
+
+        // Se c'è un post aperto, lo aggiorniamo in tempo reale per evidenziare i nuovi termini
+        if (idPostAperto !== null) {
+            mostraDettaglioPost(idPostAperto);
+        }
+
+        messaggio.textContent = "";
+    } finally {
+        ricercaInCorso = false;
     }
-
-    testoRicercaAttuale = testo;
-
-    const tempo = Math.floor(Math.random() * 3000) + 1000;
-
-    await attendi(tempo);
-
-    ultimiRisultatiRicerca = tuttiPost.filter(post => {
-
-        const parole = testo.toLowerCase().split(" ").filter(Boolean);
-
-        return parole.every(p =>
-            post.title.toLowerCase().includes(p) ||
-            post.body.toLowerCase().includes(p)
-        );
-    });
-
-    pagina = 1;
-    mostraListaPost();
 }
 
-
-//                EVENT LISTENERS
-
-// Filtro Utente
-filtroUtente.addEventListener("change", () => {
-    pagina = 1;
+// Gestione paginazione
+const cambiaPagina = (delta: number): void => {
+    pagina += delta;
     mostraListaPost();
-});
+};
 
-// Post per Pagina
-perPagina.addEventListener("change", () => {
-    pagina = 1;
-    mostraListaPost();
-});
-
-// Ricerca
-cercaBtn.addEventListener("click", eseguiRicerca);
-barraRicerca.addEventListener("keypress", (e) => {
+// Event Listeners
+filtroUtente.addEventListener("change", (): void => { pagina = 1; mostraListaPost(); });
+perPagina.addEventListener("change", (): void => { pagina = 1; mostraListaPost(); });
+cercaBtn.addEventListener("click", (): Promise<void> => eseguiRicerca());
+barraRicerca.addEventListener("keypress", (e: KeyboardEvent): void => {
     if (e.key === "Enter") eseguiRicerca();
 });
+prevBtn.addEventListener("click", (): void => cambiaPagina(-1));
+nextBtn.addEventListener("click", (): void => cambiaPagina(1));
+riprovaCentroBtn.addEventListener("click", (): Promise<void> => caricaDatiIniziali());
 
-// Paginazione
-prevBtn.addEventListener("click", () => {
-    if (pagina > 1) {
-        pagina--;
-        mostraListaPost();
-    }
-});
-
-nextBtn.addEventListener("click", () => {
-    pagina++;
-    mostraListaPost();
-});
-
-// Riprova
-riprovaCentroBtn.addEventListener("click", caricaDatiIniziali);
-
-// avvio
+// Inizializzazione
 caricaDatiIniziali();

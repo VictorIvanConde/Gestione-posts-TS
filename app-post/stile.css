@@ -303,7 +303,16 @@ h1 {
 }
 
 .highlight {
-    color: #2ecc71;
+    color: #2ecc71 !important;
     font-weight: bold;
-    text-shadow: 0 0 5px rgba(46, 204, 113, 0.6);
+    text-shadow: 0 0 8px rgba(46, 204, 113, 0.8);
+}
+
+/* Stile per i tasti disabilitati */
+button:disabled {
+    background-color: #444 !important;
+    color: #888 !important;
+    cursor: not-allowed;
+    opacity: 0.6;
+    transform: none !important; /* Evita animazioni su tasti spenti */
 }

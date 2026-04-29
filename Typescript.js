@@ -22,6 +22,8 @@ let pagina = 1;
 let testoRicercaAttuale = "";
 // risultati filtrati della ricerca (può essere null)
 let ultimiRisultatiRicerca = null;
+// Variabile di controllo per evitare ricerche multiple sovrapposte
+let ricercaInCorso = false;
 // qui si vede 
 // → in TS dico ESPLICITAMENTE che tipo sono gli array
 // → in JS non esiste questa sicurezza
@@ -38,13 +40,15 @@ async function api(url) {
 function attendi(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-// Funzione per evidenziace il testo cercato
+// Funzione per evidenziare il testo cercato
 function evidenziaTesto(testo, query) {
     if (!query.trim())
         return testo;
-    const parole = query.trim().split(/\s+/).filter(p => p.length > 0);
+    // Escapiamo i caratteri speciali per evitare che la Regex vada in crash
+    const queryProtetta = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parole = queryProtetta.trim().split(/\s+/).filter((p) => p.length > 0);
     let testoRisultante = testo;
-    parole.forEach(parola => {
+    parole.forEach((parola) => {
         const regex = new RegExp(`(${parola})`, "gi");
         testoRisultante = testoRisultante.replace(regex, "<mark>$1</mark>");
     });
@@ -166,26 +170,47 @@ function mostraListaPost() {
 async function mostraDettaglioPost(postId) {
     try {
         dettaglioPost.innerHTML = "<p>⏳ Caricamento...</p>";
-        const post = await api(`https://jsonplaceholder.typicode.com/posts/${postId}`);
-        const commenti = await api(`https://jsonplaceholder.typicode.com/comments?postId=${postId}`);
+        // Fetch parallela di post e commenti per essere più veloci
+        const [post, commenti] = await Promise.all([
+            api(`https://jsonplaceholder.typicode.com/posts/${postId}`),
+            api(`https://jsonplaceholder.typicode.com/comments?postId=${postId}`)
+        ]);
         let html = "";
+        // Box principale del Post
         html += "<div class='box-post'>";
         html += `<h3>${evidenziaTesto(post.title, testoRicercaAttuale)}</h3>`;
         html += `<p><strong>Utente:</strong> ${trovaNomeUtente(post.userId)}</p>`;
         html += `<p>${evidenziaTesto(post.body, testoRicercaAttuale)}</p>`;
+        // Tasto 💬 (il CSS gestisce l'icona tramite la classe .btn-commenti)
+        html += `<button id="btnToggleCommenti" class="btn-commenti" title="Mostra commenti"></button>`;
         html += "</div>";
-        html += "<div id='boxCommenti'>";
+        // Box Commenti (nascosto di default tramite inline style)
+        html += "<div id='boxCommenti' class='box-commenti' style='display: none;'>";
+        html += "<h4>Commenti</h4>";
+        html += "<div class='lista-commenti'>";
         commenti.forEach((c) => {
+            html += "<div class='commento'>";
             html += `<p><strong>${evidenziaTesto(c.name, testoRicercaAttuale)}</strong></p>`;
-            html += `<p>${c.email}</p>`;
+            html += `<p><small>${c.email}</small></p>`;
             html += `<p>${evidenziaTesto(c.body, testoRicercaAttuale)}</p>`;
+            html += "</div>";
         });
-        html += "</div>";
+        html += "</div></div>";
         dettaglioPost.innerHTML = html;
+        // Listener per il toggle dei commenti
+        const btn = document.getElementById("btnToggleCommenti");
+        const box = document.getElementById("boxCommenti");
+        if (btn && box) {
+            btn.addEventListener("click", () => {
+                const isNascosto = box.style.display === "none";
+                box.style.display = isNascosto ? "block" : "none";
+                btn.classList.toggle("aperto"); // Cambia icona 💬 -> ✖ grazie al CSS
+            });
+        }
     }
     catch (errore) {
-        dettaglioPost.innerHTML = "<p>Errore nel caricamento del dettaglio.</p>";
-        console.log(errore);
+        dettaglioPost.innerHTML = "<p class='errore'>Errore nel caricamento del dettaglio.</p>";
+        console.error("Errore dettaglio:", errore);
     }
 }
 //validazione
@@ -198,6 +223,8 @@ function validaRicerca(testo) {
 }
 // ricerca del post
 async function eseguiRicerca() {
+    if (ricercaInCorso)
+        return;
     const testo = barraRicerca.value.trim();
     const validazione = validaRicerca(testo);
     if (validazione !== true) {
@@ -206,33 +233,42 @@ async function eseguiRicerca() {
         mostraListaPost();
         return;
     }
-    testoRicercaAttuale = testo;
-    const tempo = Math.floor(Math.random() * 3000) + 1000;
-    await attendi(tempo);
-    ultimiRisultatiRicerca = tuttiPost.filter(post => {
-        const parole = testo.toLowerCase().split(" ").filter(Boolean);
-        return parole.every(p => post.title.toLowerCase().includes(p) ||
-            post.body.toLowerCase().includes(p));
-    });
-    pagina = 1;
-    mostraListaPost();
+    try {
+        ricercaInCorso = true;
+        testoRicercaAttuale = testo;
+        messaggio.textContent = "🔍 Ricerca in corso...";
+        const tempo = Math.floor(Math.random() * 2000) + 500;
+        await attendi(tempo);
+        ultimiRisultatiRicerca = tuttiPost.filter((post) => {
+            const parole = testo.toLowerCase().split(" ").filter(Boolean);
+            return parole.every((p) => post.title.toLowerCase().includes(p) ||
+                post.body.toLowerCase().includes(p));
+        });
+        pagina = 1;
+        mostraListaPost();
+        messaggio.textContent = "";
+    }
+    finally {
+        ricercaInCorso = false;
+    }
 }
-//                EVENT LISTENERS
+// Funzione di utilità per reset e aggiornamento lista
+const resettaPaginaEMostra = () => {
+    pagina = 1;
+    mostraListaPost();
+};
 // Filtro Utente
-filtroUtente.addEventListener("change", () => {
-    pagina = 1;
-    mostraListaPost();
-});
+filtroUtente.addEventListener("change", resettaPaginaEMostra);
 // Post per Pagina
-perPagina.addEventListener("change", () => {
-    pagina = 1;
-    mostraListaPost();
-});
+perPagina.addEventListener("change", resettaPaginaEMostra);
 // Ricerca
-cercaBtn.addEventListener("click", eseguiRicerca);
+cercaBtn.addEventListener("click", () => {
+    eseguiRicerca();
+});
 barraRicerca.addEventListener("keypress", (e) => {
-    if (e.key === "Enter")
+    if (e.key === "Enter") {
         eseguiRicerca();
+    }
 });
 // Paginazione
 prevBtn.addEventListener("click", () => {
@@ -246,7 +282,9 @@ nextBtn.addEventListener("click", () => {
     mostraListaPost();
 });
 // Riprova
-riprovaCentroBtn.addEventListener("click", caricaDatiIniziali);
+riprovaCentroBtn.addEventListener("click", () => {
+    caricaDatiIniziali();
+});
 // avvio
 caricaDatiIniziali();
 //# sourceMappingURL=Typescript.js.map
